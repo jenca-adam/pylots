@@ -1,8 +1,10 @@
+from jinja2 import Environment,BaseLoader
 from sqlalchemy import create_engine,Column,Integer,String,Boolean
 from sqlalchemy.orm import declarative_base,sessionmaker
-from ..html.objects import *
+from ..html.elements import *
+from ..html.elements import _element
 import json
-engine=create_engine('sqlite:///main.db',echo=True)
+engine=create_engine('sqlite:///main.db')
 Base = declarative_base()
 Session=sessionmaker(bind=engine)
 session=Session()
@@ -10,6 +12,11 @@ def _query(a,b):
     if b not in a:
         return {}
     return a[b]
+def by_name(name):
+    try:
+        return session.query(_model).filter(_model.name==name)[0]
+    except IndexError:
+        return None
 class _model(Base):
     __tablename__='models'
     id=Column(Integer,primary_key=True)
@@ -17,21 +24,27 @@ class _model(Base):
     code=Column(String)
 Base.metadata.create_all(engine)
 class Model():
-    def __init__(self,**kwargs):
+    def __init__(self,name,**kwargs):
+        self.name=name
         self.kwargs=kwargs
         self.columns=[]
-        for i in dir(self):
-            if isinstance(eval('self.'+i),HTMLObject):
-                self.columns.append((repr(eval('self.'+i)),i))
-        model=_model(name=self.__class__.__name__,code=json.dumps(self.columns)) 
-        session.add(model)
+    def register(self,element):
+        self.columns.append(repr(element))
+        model=by_name(self.name)
+        if model is None:
+            model=_model(name=self.name,code=json.dumps(self.columns))
+
+            session.add(model)
+            session.commit()
+        model.code=json.dumps(self.columns)
         session.commit()
 
-        
-    def as_html(self):
+    def render(self,dct):
         final=""
         for i in self.columns:
-            m=eval(i[0])
-            final+=m.as_html(self.kwargs[i[1]])+'\n'
-        return final
+            m=eval(i)
+            final+=m.as_html()+'\n'
+        env=Environment(loader=BaseLoader)
+        m=env.from_string(final).render(dct)
+        return m
 
