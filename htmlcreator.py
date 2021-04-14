@@ -10,4 +10,6 @@ telo=Body('Nejaky text',[],'right')
 zaklad.add_subelem(hlavicka)
 zaklad.add_subelem(telo)
 telo.add_subelem(H1('Tu je titulok!'))
-print(zaklad.as_html())
+
+
+final=zaklad.as_html()
